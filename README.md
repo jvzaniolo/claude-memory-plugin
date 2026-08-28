@@ -29,7 +29,7 @@ descobre tarde.
 | **hook `Stop`** | a cada ~120 eventos de transcript, dispara um worker headless que retoma a própria sessão (`--resume --fork-session`, contexto integral), grava as conclusões duráveis e sai. Não bloqueia sua thread. |
 | **`/memory-setup`** | configura pool único, retenção de transcript e a consolidação diária — conversando, com backup e confirmação a cada passo. |
 | **`/memory-find`** | busca em duas camadas: `grep` para termo exato, catálogo completo para escolher por sentido. |
-| **consolidação diária** | memória de tarefa fria (>30 dias) e pouco usada tem a essência promovida ao dossiê do assunto. O arquivo detalhado permanece. |
+| **consolidação diária** | disparada pelo hook `SessionStart`, no máximo 1x/dia, em background: memória de tarefa fria (>30 dias) e pouco usada tem a essência promovida ao dossiê. O arquivo detalhado permanece. |
 | **skill `memory-curation`** | o que grava, o que não grava, quando um assunto vira dossiê. |
 | **`check.sh`** | integridade: link quebrado, arquivo inalcançável, linha de índice sem arquivo. |
 
@@ -70,8 +70,12 @@ este cabe — e ler entende negação e nuance, que similaridade de vetor não d
 
 Depois de instalar, **reinicie a sessão**: `autoMemoryDirectory` só é lido no início.
 
-Requisitos: `python3`, `jq`, e o executável `claude` no `PATH`. A consolidação agendada usa
-LaunchAgent no macOS ou cron/systemd no Linux — `/memory-setup` cuida disso.
+Requisitos: `python3`, `jq`, e o executável `claude` no `PATH`.
+
+**Não agende a consolidação por cron ou launchd.** Com o store no iCloud Drive, um processo do
+launchd não herda a permissão TCC da sessão gráfica e recebe "Operation not permitted" até para
+listar o diretório — a tarefa roda, não enxerga nada, e o log diz que está tudo bem. Por isso
+ela é disparada pelo hook `SessionStart`, que roda no contexto do Claude Code.
 
 ## O que fica fora do plugin
 

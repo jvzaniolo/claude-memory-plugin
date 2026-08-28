@@ -9,7 +9,7 @@
       "name": "memory",
       "description": "Memória curada que envelhece: worker de checkpoint, dossiês por assunto e consolidação diária",
       "source": "./",
-      "version": "0.1.2",
+      "version": "0.2.0",
       "category": "productivity",
       "tags": [
         "memory",

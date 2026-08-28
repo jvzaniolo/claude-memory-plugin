@@ -34,26 +34,21 @@ Pergunte quanto tempo guardar e aplique. Sugira `365`. **Nunca use `0`** — a d
 0 desliga a limpeza, mas o código trata 0 como "não persistir" e para de escrever transcript.
 Avise o custo de disco: da ordem de 1 GB por ano em uso intenso.
 
-## 3. Consolidação diária (opcional)
+## 3. Consolidação diária
 
-Explique o que faz: uma vez por dia, memórias de tarefa frias há mais de 30 dias e pouco usadas
-têm sua essência promovida para o dossiê do assunto. **Nada é apagado** — o arquivo detalhado
-permanece; muda só o que fica em primeiro plano. Regras de comportamento (`feedback`) e
-referências nunca entram.
+Não há nada a configurar — o plugin dispara sozinho, pelo hook `SessionStart`, no máximo uma vez
+por dia, em background. Explique o que faz: memórias de tarefa frias há mais de 30 dias e pouco
+usadas têm a essência promovida para o dossiê do assunto. **Nada é apagado** — o arquivo
+detalhado permanece; muda só o que fica em primeiro plano. Regras de comportamento (`feedback`)
+e referências nunca entram.
 
-**Não agende `${CLAUDE_PLUGIN_ROOT}/scripts/consolidate.sh` diretamente** — esse caminho contém
-o número da versão do plugin e quebra em silêncio no primeiro update. Copie
-`${CLAUDE_PLUGIN_ROOT}/scripts/consolidate-wrapper.sh` para `~/.claude/memory-consolidate-run.sh`,
-torne-o executável, e agende **esse** arquivo: ele resolve a versão instalada na hora de rodar.
+**Não agende por cron, launchd ou systemd.** Em macOS com o store no iCloud Drive isso não
+funciona: iCloud é pasta protegida por TCC, e processo lançado pelo launchd não herda a
+permissão da sessão gráfica — recebe "Operation not permitted" até para listar o diretório. A
+tarefa roda todo dia, não enxerga nada, e parece saudável no log. O hook roda no contexto do
+Claude Code, que já tem acesso ao store.
 
-Agende para rodar diariamente de madrugada:
-
-- **macOS**: um LaunchAgent em `~/Library/LaunchAgents/`, com `StartCalendarInterval`. O `PATH`
-  precisa conter o diretório do executável `claude` (descubra com `which claude`); o `launchd`
-  não herda o PATH do shell.
-- **Linux**: uma linha de `crontab -e`, ou um timer do systemd.
-
-Escolha um minuto que não seja `:00` nem `:30`.
+Se o usuário quiser rodar à mão: `${CLAUDE_PLUGIN_ROOT}/scripts/consolidate.sh`.
 
 ## 4. Verificação
 

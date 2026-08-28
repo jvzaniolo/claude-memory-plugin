@@ -27,7 +27,19 @@ fi
 trap 'rmdir "$LOCK" 2>/dev/null' EXIT
 
 CAND=$(MEM_COLD_DAYS="${MEM_COLD_DAYS:-30}" python3 "$(dirname "$0")/candidates.py" "$STORE" 2>>"$LOG")
-TOTAL=$(echo "$CAND" | python3 -c 'import json,sys; print(json.load(sys.stdin)["total"])' 2>/dev/null || echo 0)
+SEL_RC=$?
+# "0 candidatos" e "falhei ao descobrir os candidatos" são estados DIFERENTES.
+# Confundi-los faz a tarefa parecer saudável enquanto não faz nada — foi o que
+# aconteceu quando o launchd não tinha permissão TCC para ler o store.
+if [ "$SEL_RC" -ne 0 ]; then
+  log "ERRO: seleção de candidatos falhou (rc=$SEL_RC) — ver a mensagem acima. NADA foi consolidado."
+  exit 1
+fi
+TOTAL=$(echo "$CAND" | python3 -c 'import json,sys; print(json.load(sys.stdin)["total"])' 2>/dev/null)
+if [ -z "$TOTAL" ]; then
+  log "ERRO: saída da seleção ilegível — NADA foi consolidado."
+  exit 1
+fi
 
 if [ "$TOTAL" -eq 0 ]; then
   log "nada a consolidar (0 candidatos)"; exit 0
