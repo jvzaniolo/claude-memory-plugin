@@ -50,6 +50,8 @@ Restrições:
 - Ao remover uma memória, remova o arquivo **e** a linha do índice, nunca só um dos
   dois — linha órfã e arquivo órfão são os dois defeitos. E remova apenas quando o
   que *esta* sessão descobriu provar que a memória está errada ou vencida.
+- **Ao criar um dossiê, marque `role: dossier` no frontmatter**, junto do `type`. A consolidação
+  usa esse campo para saber para onde promover; sem ele o assunto fica fora dela sem avisar.
 - **Arquivo sem linha no índice não é, por si, órfão.** Assunto grande tem um
   arquivo-**dossiê** no `MEMORY.md`, e os arquivos-tópico dele ficam **fora** do índice,
   alcançáveis pelos `[[links]]` do dossiê. Antes de criar linha para um arquivo que parece

@@ -22,12 +22,19 @@ JANELA_USO = int(os.environ.get("MEM_USE_WINDOW", "90"))   # dias em que um uso 
 USAGE = os.path.join(STORE, ".memory-usage.json")
 STATE = os.path.expanduser("~/.claude/memory-consolidated.json")  # estado fora do store
 
-def carrega(p):
+def carrega(p, critico=False):
+    """critico=True: arquivo corrompido ABORTA. Seguir sem o contador de uso
+    removeria o escudo das memórias mais usadas — falha na direção errada."""
+    if not os.path.exists(p): return {}
     try:
         with open(p) as f: return json.load(f)
-    except Exception: return {}
+    except Exception as e:
+        if critico:
+            sys.exit(f"erro: {p} ilegível ({e}). Abortando: sem o contador de uso, "
+                     f"memórias protegidas entrariam na fila de consolidação.")
+        return {}
 
-uso, consolidado = carrega(USAGE), carrega(STATE)
+uso, consolidado = carrega(USAGE, critico=True), carrega(STATE)
 hoje = datetime.date.today()
 
 def campo(txt, nome):
@@ -41,8 +48,13 @@ arquivos = {os.path.relpath(p, STORE): p
 # dossiês: arquivo cujo frontmatter se declara dossiê/índice temático
 dossies, membro_de = {}, {}
 for rel, p in arquivos.items():
-    cab = open(p).read()[:700]
-    if "dossiê" in cab.lower() or "Índice temático" in cab:
+    txt_d = open(p).read()
+    cab = txt_d[:700]
+    # explícito vence heurística: `role: dossier` no frontmatter é o contrato.
+    # A heurística por palavra existe só para store anterior a essa convenção.
+    eh_dossie = bool(re.search(r'^\s*role:\s*dossier\s*$', cab, re.M)) \
+                or "dossiê" in cab.lower() or "Índice temático" in cab
+    if eh_dossie:
         dossies[rel] = True
         for slug in re.findall(r"\[\[([^\]]+)\]\]", open(p).read()):
             membro_de.setdefault(slug + ".md", rel)

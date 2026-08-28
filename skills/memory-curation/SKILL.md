@@ -52,6 +52,10 @@ Quando um assunto passa de meia dúzia de memórias, crie um **dossiê**: um arq
 linha do índice e que nomeia e resume cada membro por `[[link]]`, organizado por sub-tema e com
 ordem de leitura. Os membros saem do índice e passam a ser alcançados pelo dossiê.
 
+Marque o dossiê no frontmatter com `role: dossier` ao lado do `type`. Não é decoração: a
+consolidação só promove memória que tenha um dossiê para onde ir, e sem essa marca o assunto
+inteiro fica fora dela — em silêncio.
+
 **Arquivo sem linha no `MEMORY.md` não é órfão** se um dossiê o cobre. Antes de criar linha para
 um arquivo que parece faltar, procure quem já o referencia:
 
