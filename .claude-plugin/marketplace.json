@@ -1,0 +1,15 @@
+{
+  "name": "claude-memory",
+  "description": "Memória de longo prazo curada para o Claude Code",
+  "owner": { "name": "João Vitor Zaniolo" },
+  "plugins": [
+    {
+      "name": "memory",
+      "description": "Memória curada que envelhece: worker de checkpoint, dossiês por assunto e consolidação diária",
+      "source": "./",
+      "version": "0.1.0",
+      "category": "productivity",
+      "tags": ["memory", "long-term", "markdown", "consolidation"]
+    }
+  ]
+}
