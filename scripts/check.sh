@@ -51,5 +51,43 @@ if [ -n "$semtipo" ]; then echo "$semtipo" | sed 's/^/   ✗ /'; erros=1
 else echo "   nenhuma"; fi
 
 echo
+echo "── supersessão declarada mas incompleta:"
+sup=$(STORE="$STORE" python3 - <<'PYEOF'
+import os, re, glob, sys
+STORE=os.environ["STORE"]
+probs=[]
+alvo_de={}
+for p in glob.glob(os.path.join(STORE,"**","*.md"), recursive=True):
+    rel=os.path.relpath(p,STORE)
+    if rel=="MEMORY.md": continue
+    txt=open(p).read()
+    cab=txt[:900]
+    m=re.search(r'^\s*superseded_by:\s*\[([^\]]*)\]\s*$', cab, re.M)
+    if not m: continue
+    alvos=[s.strip() for s in m.group(1).split(",") if s.strip()]
+    if not alvos:
+        probs.append(f"{rel}: superseded_by vazio"); continue
+    for a in alvos:
+        alvo_de.setdefault(rel,[]).append(a)
+        # o sucessor precisa existir
+        if not any(os.path.exists(os.path.join(STORE,c)) for c in (a+".md", os.path.join("tasks",a+".md"))):
+            probs.append(f"{rel}: superseded_by aponta para inexistente '{a}'")
+    # o corpo precisa avisar o leitor, senão a marca só existe para máquina
+    corpo=txt.split("---",2)[-1]
+    if "Superada por" not in corpo and "SUPERADA" not in corpo.upper():
+        probs.append(f"{rel}: marcada como superada, mas o corpo não avisa o leitor")
+# ciclo simples
+for a, alvos in alvo_de.items():
+    base=lambda x: os.path.basename(x)[:-3]
+    for alvo in alvos:
+        for b, balvos in alvo_de.items():
+            if base(b)==alvo and base(a) in balvos:
+                probs.append(f"ciclo de supersessão entre '{base(a)}' e '{alvo}'")
+print("\n".join(sorted(set(probs))))
+PYEOF
+)
+if [ -n "$sup" ]; then echo "$sup" | sed 's/^/   ✗ /'; erros=1; else echo "   nenhuma"; fi
+
+echo
 [ "$erros" -eq 0 ] && echo "✓ store íntegro" || echo "✗ store com problemas acima"
 exit "$erros"

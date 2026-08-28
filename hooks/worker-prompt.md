@@ -13,7 +13,11 @@ Faça, em ordem:
 1. **Releia o que já está gravado** sobre os assuntos desta sessão — o `MEMORY.md` e
    os arquivos-tópico relevantes. Nunca grave sem antes ver se já existe arquivo
    cobrindo aquilo.
-2. **Corrija o que a sessão contradisse.** Isso é mais importante que gravar coisa
+2. **Corrija o que a sessão contradisse.** Quando a sessão provar que uma memória ficou para
+   trás, marque nela `superseded_by: [slug]` no frontmatter **e** abra o corpo com
+   `> **Superada por [[slug]]** (data): o que mudou, e o que ainda vale`. Os dois juntos: o campo
+   é para a máquina, o aviso é para quem abrir o arquivo direto. Não a remova — ela é o registro
+   de por que se pensava aquilo. Isso é mais importante que gravar coisa
    nova: memória errada é pior que memória ausente. Se a sessão mediu algo que
    derruba uma conclusão gravada antes — inclusive uma gravada por um checkpoint
    anterior desta mesma sessão — reescreva o arquivo e a linha do índice. Se um

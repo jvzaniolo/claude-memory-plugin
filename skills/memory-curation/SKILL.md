@@ -66,6 +66,34 @@ grep -rl "\[\[SLUG\]\]" <store>/*.md
 Se um dossiê o cobre, atualize a linha do dossiê ou a frase daquele item dentro dele — nunca
 crie linha nova no índice. A cadeia certa é `MEMORY.md → dossiê → arquivo`.
 
+## Quando uma memória é superada
+
+Memória errada é pior que memória ausente, e a obsolescência raramente se anuncia: o mundo muda
+no código, e a memória continua afirmando o que era verdade. **Data não resolve** — o conflito
+costuma estar dentro de um arquivo só, ou a informação que invalida está no corpo de outra
+memória, onde quem abre a antiga nunca a vê.
+
+Quando constatar que uma memória ficou para trás, marque **nela** (não só em quem a superou):
+
+```markdown
+metadata:
+  superseded_by: [slug-de-quem-supera]
+```
+
+E abra o corpo dela com um aviso ao leitor, em citação:
+
+```markdown
+> **Superada por [[slug-de-quem-supera]]** (data): o que exatamente mudou, e o que da memória
+> antiga continua valendo.
+```
+
+Os dois juntos, sempre: o campo é para a máquina, o aviso é para quem abre o arquivo pelo
+wikilink e nunca veria o campo. Diga também **o que ainda vale** — uma memória superada em um
+ponto costuma continuar correta no resto, e apagá-la perderia isso.
+
+Não remova a memória superada. Ela vira o registro de por que se pensava aquilo, que é
+justamente o que não se recupera investigando.
+
 ## O que nunca fazer
 
 - **Apagar porque a tarefa acabou.** Concluir não apaga: o valor de uma memória de tarefa é o
