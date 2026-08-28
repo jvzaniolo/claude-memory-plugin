@@ -41,8 +41,12 @@ têm sua essência promovida para o dossiê do assunto. **Nada é apagado** — 
 permanece; muda só o que fica em primeiro plano. Regras de comportamento (`feedback`) e
 referências nunca entram.
 
-Se o usuário quiser, agende `${CLAUDE_PLUGIN_ROOT}/scripts/consolidate.sh` para rodar
-diariamente de madrugada:
+**Não agende `${CLAUDE_PLUGIN_ROOT}/scripts/consolidate.sh` diretamente** — esse caminho contém
+o número da versão do plugin e quebra em silêncio no primeiro update. Copie
+`${CLAUDE_PLUGIN_ROOT}/scripts/consolidate-wrapper.sh` para `~/.claude/memory-consolidate-run.sh`,
+torne-o executável, e agende **esse** arquivo: ele resolve a versão instalada na hora de rodar.
+
+Agende para rodar diariamente de madrugada:
 
 - **macOS**: um LaunchAgent em `~/Library/LaunchAgents/`, com `StartCalendarInterval`. O `PATH`
   precisa conter o diretório do executável `claude` (descubra com `which claude`); o `launchd`
