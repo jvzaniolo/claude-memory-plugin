@@ -13,10 +13,45 @@ tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 
 find . -name '*.md' -type f | sed 's|^\./||' | grep -v '^MEMORY.md$' | sort > "$tmp/disco"
 grep -o '](\([^)]*\.md\))' MEMORY.md | sed 's/^](//;s/)$//' | sort -u > "$tmp/indice"
-# slugs referenciados por [[link]] em qualquer arquivo, convertidos para caminho
-grep -ho '\[\[[^]]*\]\]' -r . 2>/dev/null | sed 's/\[\[//;s/\]\]//' \
-  | grep -E '^[a-z0-9][a-z0-9/-]*$' | grep -- '-' \
-  | sed 's|$|.md|' | sort -u > "$tmp/linkados"
+# slugs referenciados por [[link]], convertidos para caminho. Duas listas, porque os
+# dois usos divergem: alcançabilidade conta link em qualquer contexto, mas link quebrado
+# não pode acusar o que está num exemplo (bloco de código, `inline` ou citação).
+TMP="$tmp" python3 - <<'PYEOF'
+import os, re, glob
+
+TMP = os.environ["TMP"]
+SLUG = re.compile(r'^[a-z0-9][a-z0-9/-]*$')
+LINK = re.compile(r'\[\[([^\]]*)\]\]')
+
+
+def slugs(texto):
+    for bruto in LINK.findall(texto):
+        if SLUG.match(bruto) and '-' in bruto:
+            yield bruto + '.md'
+
+
+def sem_exemplos(texto):
+    linhas, em_bloco = [], False
+    for linha in texto.splitlines():
+        if linha.lstrip().startswith('```'):
+            em_bloco = not em_bloco
+            continue
+        if em_bloco or linha.lstrip().startswith('>'):
+            continue
+        linhas.append(re.sub(r'`[^`]*`', '', linha))
+    return '\n'.join(linhas)
+
+
+todos, reais = set(), set()
+for caminho in glob.glob('**/*.md', recursive=True):
+    texto = open(caminho).read()
+    todos.update(slugs(texto))
+    reais.update(slugs(sem_exemplos(texto)))
+
+for nome, conjunto in (('linkados', todos), ('linkados_reais', reais)):
+    with open(os.path.join(TMP, nome), 'w') as saida:
+        saida.write(''.join(s + '\n' for s in sorted(conjunto)))
+PYEOF
 
 erros=0
 
@@ -38,8 +73,8 @@ else echo "   nenhum"; fi
 
 echo
 echo "── [[links]] quebrados (referência sem arquivo):"
-if comm -13 "$tmp/disco" "$tmp/linkados" | grep -q .; then
-  comm -13 "$tmp/disco" "$tmp/linkados" | sed 's/^/   ✗ /'; erros=1
+if comm -13 "$tmp/disco" "$tmp/linkados_reais" | grep -q .; then
+  comm -13 "$tmp/disco" "$tmp/linkados_reais" | sed 's/^/   ✗ /'; erros=1
 else echo "   nenhum"; fi
 
 echo
@@ -61,7 +96,8 @@ for p in glob.glob(os.path.join(STORE,"**","*.md"), recursive=True):
     rel=os.path.relpath(p,STORE)
     if rel=="MEMORY.md": continue
     txt=open(p).read()
-    cab=txt[:900]
+    # só o frontmatter: `superseded_by` no corpo é exemplo, não declaração
+    cab=txt.split("---",2)[1] if txt.startswith("---") else ""
     m=re.search(r'^\s*superseded_by:\s*\[([^\]]*)\]\s*$', cab, re.M)
     if not m: continue
     alvos=[s.strip() for s in m.group(1).split(",") if s.strip()]
