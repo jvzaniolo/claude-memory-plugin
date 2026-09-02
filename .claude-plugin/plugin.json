@@ -26,6 +26,18 @@
         ]
       }
     ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/checkpoint.sh\"",
+            "timeout": 15,
+            "statusMessage": "Checkpoint de memória antes da compactação…"
+          }
+        ]
+      }
+    ],
     "SessionStart": [
       {
         "hooks": [

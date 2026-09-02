@@ -27,6 +27,7 @@ descobre tarde.
 | peça | o que faz |
 |---|---|
 | **hook `Stop`** | a cada ~120 eventos de transcript, dispara um worker headless que retoma a própria sessão (`--resume --fork-session`, contexto integral), grava as conclusões duráveis e sai. Não bloqueia sua thread. |
+| **hook `PreCompact`** | mesmo worker, disparado antes de a compactação trocar o detalhe da thread por um resumo — sem esperar os ~120 eventos. |
 | **`/memory-setup`** | configura pool único, retenção de transcript e a consolidação diária — conversando, com backup e confirmação a cada passo. |
 | **`/memory-find`** | busca em duas camadas: `grep` para termo exato, catálogo completo para escolher por sentido. |
 | **consolidação diária** | disparada pelo hook `SessionStart`, no máximo 1x/dia, em background: memória de tarefa fria (>30 dias) e pouco usada tem a essência promovida ao dossiê. O arquivo detalhado permanece. |
