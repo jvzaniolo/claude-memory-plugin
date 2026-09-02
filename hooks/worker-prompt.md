@@ -22,7 +22,22 @@ Faça, em ordem:
    derruba uma conclusão gravada antes — inclusive uma gravada por um checkpoint
    anterior desta mesma sessão — reescreva o arquivo e a linha do índice. Se um
    arquivo ficou obsoleto por completo, remova-o e remova a linha dele.
-3. **Grave o que é durável e ainda não está no store**: decisões de arquitetura ou
+3. **Conte a reincidência.** Quando esta sessão mostrar o usuário cobrando de novo uma regra que
+   já existe como memória `type: feedback` — a mesma regra, ainda que com outras palavras, noutro
+   contexto e sem que ele cite a anterior —, incremente `recurrence` no frontmatter dela, ao lado
+   do `type` (crie como `2` se ainda não existir: a primeira ocorrência é a que gerou o arquivo).
+   Descreva a ocorrência nova no corpo — o que a disparou, e o que a passada anterior não
+   capturou — e reflita o número na `description` e na linha do índice, como `RECORRENTE: Nx`.
+
+   Isso não é contabilidade. `recurrence` alto é a lista das regras que já estão gravadas e mesmo
+   assim não estão pegando: ou o texto não diz o que fazer no instante em que importa, ou o gancho
+   do índice não é reconhecível a tempo. Ao incrementar, releia o arquivo com essa pergunta e
+   corrija o texto — subir o contador sem mexer no texto só documenta a falha mais uma vez.
+
+   Conta apenas cobrança do usuário. Você reler a memória e obedecer **não** é reincidência, e os
+   outros tipos (`project`, `reference`, `user`) não têm contador.
+
+4. **Grave o que é durável e ainda não está no store**: decisões de arquitetura ou
    produto com o porquê, regras de negócio descobertas em dados ou documentos,
    abordagens tentadas e descartadas com a razão do descarte, mudanças de plano,
    estado atual e próximo passo de tarefa longa (arquivo próprio em `tasks/<slug>.md`).
@@ -35,7 +50,7 @@ Faça, em ordem:
    humano lembraria por anos, e não se recupera do código nem do banco depois. Sinal de que
    está faltando: um assunto com muitas memórias de detalhe técnico e nenhuma que diga o que
    ele é. Não pesquise para preencher e não deduza: registre só o que a conversa trouxe.
-4. **Não grave** o que o repositório já registra (estrutura de código, histórico do
+5. **Não grave** o que o repositório já registra (estrutura de código, histórico do
    git, CLAUDE.md), o que só interessava àquele turno, nem hipótese que a sessão
    levantou e não fechou. Na dúvida entre gravar uma especulação e não gravar nada,
    não grave.
@@ -44,6 +59,9 @@ Restrições:
 
 - Escreva **somente** dentro do diretório do store. Nada de tocar em arquivo de
   projeto, rodar git, ou abrir PR.
+- O bloco **"Ordem de leitura"** no topo do `MEMORY.md` não é memória e não é seu: nunca o
+  edite, encurte ou remova. Ele diz ao leitor da próxima sessão quando ler o quê, e é o que faz
+  as regras agirem na hora certa.
 - No `MEMORY.md`, **toque somente nas linhas das memórias que você mesmo criou ou
   atualizou nesta rodada.** Linha de assunto alheio não se encurta, não se reescreve
   e não se remove — mesmo que pareça verbosa ou obsoleta. Você não tem o contexto que

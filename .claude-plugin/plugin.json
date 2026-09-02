@@ -1,7 +1,7 @@
 {
   "name": "memory",
   "description": "Memória de longo prazo curada para o Claude Code: um worker headless grava as conclusões duráveis de cada sessão fora da sua thread, dossiês mantêm o índice enxuto, e uma consolidação diária deixa o que envelhece virar o essencial sem apagar nada.",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "author": {
     "name": "João Vitor Zaniolo"
   },
@@ -22,6 +22,18 @@
             "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/checkpoint.sh\"",
             "timeout": 15,
             "statusMessage": "Verificando checkpoint de memória…"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/checkpoint.sh\"",
+            "timeout": 15,
+            "statusMessage": "Checkpoint de memória antes da compactação…"
           }
         ]
       }

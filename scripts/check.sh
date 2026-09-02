@@ -125,5 +125,66 @@ PYEOF
 if [ -n "$sup" ]; then echo "$sup" | sed 's/^/   ✗ /'; erros=1; else echo "   nenhuma"; fi
 
 echo
+echo "── reincidência: regras de feedback que o usuário precisou cobrar de novo:"
+STORE="$STORE" TMP="$tmp" python3 - <<'PYEOF2'
+import os, re, glob
+
+STORE, TMP = os.environ["STORE"], os.environ["TMP"]
+CAMPO = re.compile(r'^\s*recurrence:\s*(\d+)\s*$', re.M)
+# a convenção é `RECORRENTE: Nx`, mas o store tem variantes anteriores a ela
+TEXTO = re.compile(r'(?:RECORRENTE|REINCIDENTE|cobrad[oa])[^.\n]{0,30}?(\d+)\s*x', re.I)
+LINHA = re.compile(r'^- \[[^\]]*\]\(([^)]*\.md)\)(.*)$', re.M)
+
+
+def numero(texto):
+    m = TEXTO.search(texto or "")
+    return int(m.group(1)) if m else None
+
+
+indice = {}
+caminho_indice = os.path.join(STORE, "MEMORY.md")
+if os.path.exists(caminho_indice):
+    for arq, resto in LINHA.findall(open(caminho_indice).read()):
+        indice[arq] = numero(resto)
+
+ranking, probs = [], []
+for caminho in sorted(glob.glob(os.path.join(STORE, "**", "*.md"), recursive=True)):
+    rel = os.path.relpath(caminho, STORE)
+    if rel == "MEMORY.md":
+        continue
+    texto = open(caminho).read()
+    cabecalho = texto.split("---", 2)[1] if texto.startswith("---") else ""
+    m = CAMPO.search(cabecalho)
+    campo = int(m.group(1)) if m else None
+    na_descricao = numero(cabecalho)
+    na_linha = indice.get(rel)
+
+    # o contador é a fonte da verdade; o texto é o que age, e por isso não pode divergir
+    if campo is None and (na_descricao or na_linha):
+        probs.append(f"{rel}: escrito como {na_descricao or na_linha}x, mas sem `recurrence:` no frontmatter")
+    elif campo is not None:
+        if na_descricao is not None and na_descricao != campo:
+            probs.append(f"{rel}: recurrence={campo}, mas a descrição diz {na_descricao}x")
+        if na_linha is not None and na_linha != campo:
+            probs.append(f"{rel}: recurrence={campo}, mas a linha do índice diz {na_linha}x")
+        if campo >= 2:
+            ranking.append((campo, rel))
+
+for n, rel in sorted(ranking, key=lambda x: (-x[0], x[1])):
+    print(f"   {n}x  {rel}")
+if not ranking:
+    print("   nenhuma")
+
+with open(os.path.join(TMP, "recorrencia"), "w") as saida:
+    saida.write("".join(x + "\n" for x in sorted(set(probs))))
+PYEOF2
+
+echo
+echo "── contador de reincidência divergente do texto que age:"
+if [ -s "$tmp/recorrencia" ]; then
+  sed 's/^/   ✗ /' "$tmp/recorrencia"; erros=1
+else echo "   nenhum"; fi
+
+echo
 [ "$erros" -eq 0 ] && echo "✓ store íntegro" || echo "✗ store com problemas acima"
 exit "$erros"

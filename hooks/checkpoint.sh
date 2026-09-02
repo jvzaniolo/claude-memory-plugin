@@ -1,8 +1,10 @@
 #!/bin/bash
-# Hook Stop global: checkpoint de memória FORA da thread principal.
+# Hook global de checkpoint de memória, FORA da thread principal. Roda em dois eventos:
 #
-# Quando a sessão acumulou trabalho suficiente desde o último checkpoint,
-# dispara um worker headless desanexado que retoma esta mesma conversa
+#   Stop       — a sessão acumulou trabalho suficiente desde o último checkpoint.
+#   PreCompact — a compactação está prestes a trocar o detalhe da thread por um resumo.
+#
+# Dispara um worker headless desanexado que retoma esta mesma conversa
 # (--resume --fork-session, contexto integral), grava as conclusões duráveis na
 # memória e sai. Nunca bloqueia o encerramento: a thread do usuário não espera.
 #
@@ -15,6 +17,7 @@
 
 input=$(cat)
 
+evento=$(echo "$input" | jq -r '.hook_event_name // empty')
 transcript=$(echo "$input" | jq -r '.transcript_path // empty')
 session=$(echo "$input" | jq -r '.session_id // empty')
 [ -z "$transcript" ] && exit 0
@@ -26,8 +29,19 @@ marker="${TMPDIR:-/tmp}/claude-memory-checkpoint-${session}"
 last=0
 [ -f "$marker" ] && last=$(cat "$marker")
 
-# Só vale um worker se houve trabalho substancial desde o último (~120 eventos).
-if [ $((lines - last)) -lt 120 ]; then
+# No Stop, só vale um worker se houve trabalho substancial desde o último (~120 eventos).
+#
+# No PreCompact o cálculo é outro: o detalhe desta thread está prestes a virar resumo, e o
+# próximo Stop já não vai encontrá-lo. O piso existe só para não disparar em cima de um worker
+# que acabou de rodar. Há uma corrida com a compactação — o worker resolve o transcript no
+# disco, e se perder a corrida lê o mesmo resumo que leria depois —, então o PreCompact nunca
+# fica pior que o comportamento sem ele, e na maioria das vezes salva o contexto inteiro.
+case "$evento" in
+  PreCompact) minimo=20 ;;
+  *)          minimo=120 ;;
+esac
+
+if [ $((lines - last)) -lt "$minimo" ]; then
   exit 0
 fi
 
@@ -57,11 +71,9 @@ store=$(memory_store) || exit 0
     tail -n 200 "$log" > "$log.tmp" && mv "$log.tmp" "$log"
   fi
 
-  # Só marca depois de pegar o lock: checkpoint que não rodou é retentado no
-  # próximo Stop, em vez de virar buraco.
-  echo "$lines" > "$marker"
+  echo "[$(date '+%F %T')] worker iniciado evento=${evento:-Stop} sessao=${session:0:8} linhas=$lines" >> "$log"
 
-  echo "[$(date '+%F %T')] worker iniciado sessao=${session:0:8} linhas=$lines" >> "$log"
+  saida=$(mktemp)
   CLAUDE_MEMORY_WORKER=1 nohup claude -p \
     --resume "$session" \
     --fork-session \
@@ -70,8 +82,21 @@ store=$(memory_store) || exit 0
     --permission-mode acceptEdits \
     --add-dir "$store" \
     --allowedTools Read Write Edit Glob Grep \
-    < "$prompt_file" >> "$log" 2>&1
-  echo "[$(date '+%F %T')] worker terminou status=$? sessao=${session:0:8}" >> "$log"
+    < "$prompt_file" > "$saida" 2>&1
+  status=$?
+  cat "$saida" >> "$log"
+
+  # O worker termina imprimindo o que fez, uma linha por arquivo, ou `nada a gravar`.
+  # Sem essa linha ele não chegou ao fim — limite de uso, erro de rede, saída vazia — e
+  # sai com status 0 do mesmo jeito. O marker só avança quando houve trabalho de verdade:
+  # checkpoint não confirmado é retentado no próximo Stop, em vez de virar buraco em silêncio.
+  if [ "$status" -eq 0 ] && grep -qE '^[[:space:]]*(criado|atualizado|removido|nada a gravar)' "$saida"; then
+    echo "$lines" > "$marker"
+    echo "[$(date '+%F %T')] worker terminou sessao=${session:0:8}" >> "$log"
+  else
+    echo "[$(date '+%F %T')] worker NAO confirmou gravacao (status=$status) sessao=${session:0:8} — sera retentado" >> "$log"
+  fi
+  rm -f "$saida"
   echo "" >> "$log"
 ) </dev/null >/dev/null 2>&1 &
 
