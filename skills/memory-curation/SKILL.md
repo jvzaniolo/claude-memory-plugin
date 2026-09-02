@@ -43,6 +43,21 @@ milésimo dia, e nunca devem ser generalizadas ou rebaixadas por desuso. Elas co
 que ninguém abra o arquivo — o gancho no índice basta —, então uso baixo não é sinal de pouco
 valor. É o contrário.
 
+## Reincidência
+
+Quando o usuário cobra de novo uma regra que já existe como `feedback`, o contador `recurrence`
+sobe no frontmatter dela, e o número aparece na `description` e na linha do índice como
+`RECORRENTE: Nx`. O campo é para a máquina, o texto é o que age — o `check.sh` acusa se os dois
+divergirem.
+
+O valor não é a contagem. `recurrence` alto marca a regra que está gravada e mesmo assim não
+está pegando: ou o texto não diz o que fazer no instante em que importa, ou o gancho do índice
+não é reconhecível a tempo. Ao subir o contador, reescreva o texto com essa pergunta — contador
+que sobe sem o texto mudar só documenta a mesma falha outra vez.
+
+Conta apenas cobrança do usuário. Ler a memória e obedecer não é reincidência, e os outros tipos
+não têm contador.
+
 ## O índice e os dossiês
 
 `MEMORY.md` é carregado em toda sessão e tem teto de **200 linhas / 25 KB** — o de bytes morde
