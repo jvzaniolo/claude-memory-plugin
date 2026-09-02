@@ -7,13 +7,13 @@
 # contexto, e reimprimi-las é metade do custo da busca sem nenhuma informação nova. Sobra o
 # que não está em lugar nenhum — membros de dossiê e tasks/ —, que é o valor real da busca.
 #
-# Uso: find.sh [--tudo] [termo]   (--tudo inclui as já indexadas; sem termo, só o catálogo)
+# Uso: find.sh [--all] [termo]   (--all inclui as já indexadas; sem termo, só o catálogo)
 . "$(dirname "$0")/lib.sh"
 STORE="${MEM_STORE:-$(memory_store_or_die)}" || exit 1
 cd "$STORE" || exit 1
 
-TUDO=0
-[ "${1:-}" = "--tudo" ] && { TUDO=1; shift; }
+ALL=0
+[ "${1:-}" = "--all" ] && { ALL=1; shift; }
 
 if [ $# -gt 0 ]; then
   echo "═══ LITERAL: arquivos contendo \"$*\" ═══"
@@ -22,7 +22,7 @@ if [ $# -gt 0 ]; then
 fi
 
 indexadas=$(mktemp); trap 'rm -f "$indexadas"' EXIT
-if [ "$TUDO" -eq 0 ] && [ -f MEMORY.md ]; then
+if [ "$ALL" -eq 0 ] && [ -f MEMORY.md ]; then
   grep -o '](\([^)]*\.md\))' MEMORY.md | sed 's/^](//;s/)$//' | sort -u > "$indexadas"
 fi
 
@@ -38,11 +38,11 @@ corpo=$(find . -name '*.md' ! -name 'MEMORY.md' -print0 | sort -z |
 listadas=$(printf '%s' "$corpo" | grep -c . )
 omitidas=$(wc -l < "$indexadas" | tr -d ' ')
 
-if [ "$TUDO" -eq 1 ]; then
+if [ "$ALL" -eq 1 ]; then
   echo "═══ CATÁLOGO COMPLETO: $listadas memórias ═══"
 else
   echo "═══ CATÁLOGO: $listadas memórias fora do índice ═══"
   echo "(as outras $omitidas já têm linha no MEMORY.md, que você leu no início da sessão —"
-  echo " escolha entre as duas listas juntas. Para reimprimi-las aqui: find.sh --tudo)"
+  echo " escolha entre as duas listas juntas. Para reimprimi-las aqui: find.sh --all)"
 fi
 printf '%s\n' "$corpo"

@@ -16,7 +16,7 @@ O catálogo traz apenas o que **não** está no `MEMORY.md`: membros de dossiê 
 memórias com linha no índice já estão no seu contexto desde o início da sessão, e reimprimi-las
 aqui custaria metade da busca sem acrescentar nada. **Escolha entre as duas listas juntas** — o
 índice que você já leu e o catálogo. Se precisar mesmo das descrições completas das indexadas,
-`find.sh --tudo`.
+`find.sh --all`.
 
 Juntas, as duas listas são a busca semântica deste sistema: em um store da ordem de centenas de
 memórias, ler as descrições custa menos e acerta mais que manter um índice vetorial — e entende
