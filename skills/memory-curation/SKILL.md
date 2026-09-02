@@ -43,6 +43,15 @@ milésimo dia, e nunca devem ser generalizadas ou rebaixadas por desuso. Elas co
 que ninguém abra o arquivo — o gancho no índice basta —, então uso baixo não é sinal de pouco
 valor. É o contrário.
 
+## Ordem de leitura
+
+O `MEMORY.md` abre com um bloco numerado dizendo **quando** ler o quê — antes de agir, ao tocar
+um assunto com dossiê, ao precisar de termo exato, antes de gravar. Não é decoração: escrever a
+regra certa não basta se o modelo a lê tarde demais para agir sobre ela.
+
+O bloco é roteador, não conteúdo: cada item aponta para um momento e uma ação, nunca carrega o
+fato em si. Mantenha-o em quatro linhas ou menos — ele é carregado em toda sessão.
+
 ## Reincidência
 
 Quando o usuário cobra de novo uma regra que já existe como `feedback`, o contador `recurrence`

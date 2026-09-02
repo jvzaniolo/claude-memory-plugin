@@ -71,11 +71,9 @@ store=$(memory_store) || exit 0
     tail -n 200 "$log" > "$log.tmp" && mv "$log.tmp" "$log"
   fi
 
-  # Só marca depois de pegar o lock: checkpoint que não rodou é retentado no
-  # próximo Stop, em vez de virar buraco.
-  echo "$lines" > "$marker"
-
   echo "[$(date '+%F %T')] worker iniciado evento=${evento:-Stop} sessao=${session:0:8} linhas=$lines" >> "$log"
+
+  saida=$(mktemp)
   CLAUDE_MEMORY_WORKER=1 nohup claude -p \
     --resume "$session" \
     --fork-session \
@@ -84,8 +82,21 @@ store=$(memory_store) || exit 0
     --permission-mode acceptEdits \
     --add-dir "$store" \
     --allowedTools Read Write Edit Glob Grep \
-    < "$prompt_file" >> "$log" 2>&1
-  echo "[$(date '+%F %T')] worker terminou status=$? sessao=${session:0:8}" >> "$log"
+    < "$prompt_file" > "$saida" 2>&1
+  status=$?
+  cat "$saida" >> "$log"
+
+  # O worker termina imprimindo o que fez, uma linha por arquivo, ou `nada a gravar`.
+  # Sem essa linha ele não chegou ao fim — limite de uso, erro de rede, saída vazia — e
+  # sai com status 0 do mesmo jeito. O marker só avança quando houve trabalho de verdade:
+  # checkpoint não confirmado é retentado no próximo Stop, em vez de virar buraco em silêncio.
+  if [ "$status" -eq 0 ] && grep -qE '^[[:space:]]*(criado|atualizado|removido|nada a gravar)' "$saida"; then
+    echo "$lines" > "$marker"
+    echo "[$(date '+%F %T')] worker terminou sessao=${session:0:8}" >> "$log"
+  else
+    echo "[$(date '+%F %T')] worker NAO confirmou gravacao (status=$status) sessao=${session:0:8} — sera retentado" >> "$log"
+  fi
+  rm -f "$saida"
   echo "" >> "$log"
 ) </dev/null >/dev/null 2>&1 &
 

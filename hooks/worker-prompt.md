@@ -59,6 +59,9 @@ Restrições:
 
 - Escreva **somente** dentro do diretório do store. Nada de tocar em arquivo de
   projeto, rodar git, ou abrir PR.
+- O bloco **"Ordem de leitura"** no topo do `MEMORY.md` não é memória e não é seu: nunca o
+  edite, encurte ou remova. Ele diz ao leitor da próxima sessão quando ler o quê, e é o que faz
+  as regras agirem na hora certa.
 - No `MEMORY.md`, **toque somente nas linhas das memórias que você mesmo criou ou
   atualizou nesta rodada.** Linha de assunto alheio não se encurta, não se reescreve
   e não se remove — mesmo que pareça verbosa ou obsoleta. Você não tem o contexto que

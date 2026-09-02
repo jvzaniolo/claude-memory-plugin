@@ -33,6 +33,7 @@ descobre tarde.
 | **consolidação diária** | disparada pelo hook `SessionStart`, no máximo 1x/dia, em background: memória de tarefa fria (>30 dias) e pouco usada tem a essência promovida ao dossiê. O arquivo detalhado permanece. |
 | **skill `memory-curation`** | o que grava, o que não grava, quando um assunto vira dossiê. |
 | **`check.sh`** | integridade: link quebrado, arquivo inalcançável, linha de índice sem arquivo, contador de reincidência divergente. |
+| **ordem de leitura** | bloco numerado no topo do `MEMORY.md` dizendo quando ler o quê. Regra certa lida tarde demais não age. |
 | **contador de reincidência** | `recurrence:` nas memórias `feedback`, incrementado quando o usuário cobra a mesma regra de novo. É a lista das regras que estão gravadas e mesmo assim não estão pegando. |
 
 ## Ideias que sustentam o desenho
