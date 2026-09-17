@@ -20,7 +20,7 @@ DIAS = int(os.environ.get("MEM_COLD_DAYS", "30"))
 USO_PROTEGE = int(os.environ.get("MEM_USE_SHIELD", "3"))
 JANELA_USO = int(os.environ.get("MEM_USE_WINDOW", "90"))   # dias em que um uso ainda escuda
 USAGE = os.path.join(STORE, ".memory-usage.json")
-STATE = os.path.expanduser("~/.claude/memory-consolidated.json")  # estado fora do store
+STATE = os.path.join(os.environ.get("MEM_STATE_DIR", os.path.expanduser("~/.claude")), "memory-consolidated.json")  # estado fora do store
 
 def carrega(p, critico=False):
     """critico=True: arquivo corrompido ABORTA. Seguir sem o contador de uso
@@ -34,7 +34,7 @@ def carrega(p, critico=False):
                      f"memórias protegidas entrariam na fila de consolidação.")
         return {}
 
-uso, consolidado = carrega(USAGE, critico=True), carrega(STATE)
+uso, consolidado = carrega(USAGE, critico=True), carrega(STATE, critico=True)
 hoje = datetime.date.today()
 
 def campo(txt, nome):

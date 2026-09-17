@@ -26,7 +26,7 @@ descobre tarde.
 
 | peça | o que faz |
 |---|---|
-| **hook `Stop`** | a cada ~120 eventos de transcript, dispara um worker headless que retoma a própria sessão (`--resume --fork-session`, contexto integral), grava as conclusões duráveis e sai. Não bloqueia sua thread. |
+| **hook `Stop`** | a cada ~120 eventos de transcript, dispara um worker headless que recebe uma cópia do transcript em uma sessão isolada, grava as conclusões duráveis e sai. Não bloqueia sua thread. |
 | **hook `PreCompact`** | mesmo worker, disparado antes de a compactação trocar o detalhe da thread por um resumo — sem esperar os ~120 eventos. |
 | **`/memory-setup`** | configura pool único, retenção de transcript e a consolidação diária — conversando, com backup e confirmação a cada passo. |
 | **`/memory-find`** | busca em duas camadas: `grep` para termo exato, catálogo completo para escolher por sentido. |
@@ -47,13 +47,11 @@ resume seus membros; os membros saem do `MEMORY.md`. A cadeia vira `índice → 
 e o teto deixa de morder. Arquivo fora do índice não é órfão quando um dossiê o cobre.
 
 **Concluir não apaga.** O valor de uma memória de tarefa é o domínio que ela carrega — a regra
-de negócio, o número medido, o porquê da decisão. Isso sobrevive à entrega. Só sai o que se
-provou errado.
+de negócio, o número medido, o porquê da decisão. Isso sobrevive à entrega. Conteúdo superado permanece com aviso e sucessor explícito.
 
 **Regra de comportamento não envelhece.** Memórias `feedback` e `reference` ficam fora da
-consolidação. Elas costumam agir sem que ninguém abra o arquivo, então uso baixo não é sinal de
-pouco valor — é o contrário, e um sistema que rebaixasse por desuso apagaria primeiro o que mais
-importa.
+consolidação. Abra a fonte antes de aplicar uma regra; o gancho do índice é só um ponteiro. Uso baixo
+não é motivo para rebaixar essas memórias.
 
 **Acesso promove, desuso não condena.** O worker conta uso real; o contador protege da
 consolidação, dentro de uma janela de 90 dias. O total histórico nunca decresce, mas deixa de
@@ -73,7 +71,8 @@ este cabe — e ler entende negação e nuance, que similaridade de vetor não d
 
 Depois de instalar, **reinicie a sessão**: `autoMemoryDirectory` só é lido no início.
 
-Requisitos: `python3`, `jq`, e o executável `claude` no `PATH`.
+Requisitos: Python 3.9+, `jq` e Claude Code 2.1.248+ no `PATH`, com `--safe-mode` e
+`--restricted` disponíveis. O bloqueio usa `fcntl` do Python em macOS/Linux.
 
 **Não agende a consolidação por cron ou launchd.** Com o store no iCloud Drive, um processo do
 launchd não herda a permissão TCC da sessão gráfica e recebe "Operation not permitted" até para
@@ -87,8 +86,8 @@ que foi gravado.
 
 ## Custo
 
-O worker roda em Sonnet com o contexto integral da sessão — da ordem de US$ 1 por checkpoint em
-sessão longa, algumas vezes por dia de trabalho pesado. A consolidação diária sai de graça
+O worker roda em Sonnet e recebe o histórico de mensagens como dados. O custo desta execução
+isolada ainda não foi medido; as estimativas do antigo fork não se aplicam automaticamente. A consolidação diária sai de graça
 quando não há candidato: o script filtra antes e só chama o modelo se houver o que fazer.
 
 ## Limites conhecidos
@@ -104,3 +103,82 @@ quando não há candidato: o script filtra antes e só chama o modelo se houver 
 ## Licença
 
 MIT.
+
+## Isolamento e confirmação (0.3.1)
+
+Os workers não retomam a sessão original. Rodam fora do projeto, com `--safe-mode`,
+`--restricted`, MCP vazio, hooks desativados e somente Read/Write/Edit/Glob/Grep. Leitura fica
+confinada à cópia temporária; escrita é autorizada apenas para Markdown (checkpoint) ou para
+os dossiês selecionados (consolidação). O contador de uso é mantido pelo processo local.
+
+O store real só recebe alterações após resultado estruturado válido, verificação de integridade
+e comparação com a versão lida antes da chamada. Deleções e alterações fora do escopo abortam
+a aplicação. O processo guarda os originais em `~/.claude/memory-backups/` e substitui cada
+arquivo atomicamente; o conjunto de arquivos não é uma transação de filesystem.
+
+Checkpoint e consolidação compartilham um bloqueio por caminho canônico do store. O sistema
+operacional libera o bloqueio quando o processo morre, sem prazo arbitrário que permita roubar
+um bloqueio ainda ativo. Escritas manuais/iCloud não usam esse bloqueio; a comparação detecta
+mudanças durante a chamada, mas não elimina uma corrida na janela final de aplicação.
+
+A consolidação confirma cada arquivo separadamente; omitidos e `skipped` continuam pendentes.
+O marcador diário só avança após o lote completo ou ausência de candidatos. Falhas são
+registradas no log e podem ser retentadas no próximo SessionStart. O checkpoint só avança
+após aplicar as alterações validadas. Sessões curtas ainda seguem o piso de 120 eventos
+(20 no PreCompact); não há gatilho adicional no encerramento do processo.
+
+`MEM_STATE_DIR` permite testar os estados e logs em diretório temporário. Para verificar:
+
+```sh
+python3 -m unittest discover -s tests -v
+for script in hooks/*.sh scripts/*.sh; do bash -n "$script" || exit; done
+```
+
+
+## Preferências aplicadas automaticamente (0.3.2)
+
+O checkpoint promove orientações permanentes explícitas na primeira ocorrência e preferências
+comportamentais recorrentes para `rules` no frontmatter das memórias `feedback`. Cada regra tem
+`key`, `scope`, `instruction` e uma `evidence` literal do corpo da memória. Visitas não promovem
+uma memória sozinhas. O worker mantém o histórico da preferência e só atualiza o mesmo assunto
+quando o usuário autoriza uma mudança permanente; exceções locais e contradições ambíguas não
+substituem a regra vigente.
+
+`scope` é `global` ou o identificador de um repositório, nunca prosa: ele roteia a regra para um
+arquivo em disco. A nuance ("no apps/frontend", "ao revisar PR") vai dentro da instrução.
+Regra `global` é publicada no `CLAUDE.md` do diretório de estado (`~/.claude` por padrão); regra
+de repositório vai para o `CLAUDE.local.md` de cada cópia de trabalho dele, que é pessoal e fica
+fora do que o time comita. O mapeamento entre identificador e pastas está em
+`memory-scopes.json`, no diretório de estado, e é do usuário:
+
+```json
+{ "hu-dashboard": ["~/Developer/hu/dashboard", "~/Developer/hu360/apps/frontend"] }
+```
+
+Um identificador pode apontar para várias pastas — a mesma regra alcança as duas cópias do mesmo
+repositório. Alcance sem pasta mapeada não publica em lugar nenhum e fica registrado no log.
+Pasta onde `CLAUDE.local.md` não esteja ignorado pelo git é recusada: o plugin não cria arquivo
+rastreável dentro do repositório de outra pessoa. Use `.git/info/exclude`, que é local.
+
+O processo local valida as fontes e gera a seção entre `<!-- memory:preferences:start -->` e
+`<!-- memory:preferences:end -->`, preservando o resto de cada arquivo byte a byte. Links
+simbólicos e marcadores incompletos são rejeitados. Mudanças concorrentes abortam a publicação;
+os originais entram no mesmo backup das memórias, sob `instructions/`. Regra inválida — evidência
+ausente do corpo, chave repetida no mesmo alcance, texto que corromperia os marcadores — é
+descartada sozinha e registrada, sem derrubar as demais nem o checkpoint. O que exceder o teto de
+10 KB por arquivo também cai com registro. O worker continua sem acesso de escrita a qualquer
+arquivo de instrução.
+
+A seção orienta o agente a distinguir exceção local, mudança permanente explícita e conflito
+ambíguo; neste último caso, ele deve perguntar o alcance antes de agir. A classificação semântica
+continua sendo do modelo: os testes estruturais não garantem obediência em toda conversa.
+Novas sessões carregam os arquivos pelo mecanismo nativo. Uma sessão já aberta quando a seção
+mudou segue com a versão que carregou no início; a próxima pega a nova.
+
+`python3 scripts/runtime.py bootstrap` percorre as memórias `feedback` existentes e promove as
+preferências permanentes já comprovadas, sem esperar uma nova cobrança. É uma passada única, com
+chamada ao modelo, que preserva o índice e o corpo das memórias e só acrescenta `rules`. Fora
+dela, os pisos de eventos valem normalmente; a sincronização não corrige falhas de captura em
+sessões curtas ou excessivamente grandes.
+
+Um índice previamente acima do teto não bloqueia uma alteração que não aumente esse excesso.
