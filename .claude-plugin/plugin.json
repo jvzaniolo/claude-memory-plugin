@@ -1,7 +1,7 @@
 {
   "name": "memory",
   "description": "Memória de longo prazo curada para o Claude Code: um worker headless grava as conclusões duráveis de cada sessão fora da sua thread, dossiês mantêm o índice enxuto, e uma consolidação diária deixa o que envelhece virar o essencial sem apagar nada.",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "author": {
     "name": "João Vitor Zaniolo"
   },

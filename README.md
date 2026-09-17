@@ -133,3 +133,52 @@ após aplicar as alterações validadas. Sessões curtas ainda seguem o piso de 
 python3 -m unittest discover -s tests -v
 for script in hooks/*.sh scripts/*.sh; do bash -n "$script" || exit; done
 ```
+
+
+## Preferências aplicadas automaticamente (0.3.2)
+
+O checkpoint promove orientações permanentes explícitas na primeira ocorrência e preferências
+comportamentais recorrentes para `rules` no frontmatter das memórias `feedback`. Cada regra tem
+`key`, `scope`, `instruction` e uma `evidence` literal do corpo da memória. Visitas não promovem
+uma memória sozinhas. O worker mantém o histórico da preferência e só atualiza o mesmo assunto
+quando o usuário autoriza uma mudança permanente; exceções locais e contradições ambíguas não
+substituem a regra vigente.
+
+`scope` é `global` ou o identificador de um repositório, nunca prosa: ele roteia a regra para um
+arquivo em disco. A nuance ("no apps/frontend", "ao revisar PR") vai dentro da instrução.
+Regra `global` é publicada no `CLAUDE.md` do diretório de estado (`~/.claude` por padrão); regra
+de repositório vai para o `CLAUDE.local.md` de cada cópia de trabalho dele, que é pessoal e fica
+fora do que o time comita. O mapeamento entre identificador e pastas está em
+`memory-scopes.json`, no diretório de estado, e é do usuário:
+
+```json
+{ "hu-dashboard": ["~/Developer/hu/dashboard", "~/Developer/hu360/apps/frontend"] }
+```
+
+Um identificador pode apontar para várias pastas — a mesma regra alcança as duas cópias do mesmo
+repositório. Alcance sem pasta mapeada não publica em lugar nenhum e fica registrado no log.
+Pasta onde `CLAUDE.local.md` não esteja ignorado pelo git é recusada: o plugin não cria arquivo
+rastreável dentro do repositório de outra pessoa. Use `.git/info/exclude`, que é local.
+
+O processo local valida as fontes e gera a seção entre `<!-- memory:preferences:start -->` e
+`<!-- memory:preferences:end -->`, preservando o resto de cada arquivo byte a byte. Links
+simbólicos e marcadores incompletos são rejeitados. Mudanças concorrentes abortam a publicação;
+os originais entram no mesmo backup das memórias, sob `instructions/`. Regra inválida — evidência
+ausente do corpo, chave repetida no mesmo alcance, texto que corromperia os marcadores — é
+descartada sozinha e registrada, sem derrubar as demais nem o checkpoint. O que exceder o teto de
+10 KB por arquivo também cai com registro. O worker continua sem acesso de escrita a qualquer
+arquivo de instrução.
+
+A seção orienta o agente a distinguir exceção local, mudança permanente explícita e conflito
+ambíguo; neste último caso, ele deve perguntar o alcance antes de agir. A classificação semântica
+continua sendo do modelo: os testes estruturais não garantem obediência em toda conversa.
+Novas sessões carregam os arquivos pelo mecanismo nativo. Uma sessão já aberta quando a seção
+mudou segue com a versão que carregou no início; a próxima pega a nova.
+
+`python3 scripts/runtime.py bootstrap` percorre as memórias `feedback` existentes e promove as
+preferências permanentes já comprovadas, sem esperar uma nova cobrança. É uma passada única, com
+chamada ao modelo, que preserva o índice e o corpo das memórias e só acrescenta `rules`. Fora
+dela, os pisos de eventos valem normalmente; a sincronização não corrige falhas de captura em
+sessões curtas ou excessivamente grandes.
+
+Um índice previamente acima do teto não bloqueia uma alteração que não aumente esse excesso.

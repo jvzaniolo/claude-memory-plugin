@@ -51,7 +51,7 @@ def read_json(path, default):
 
 
 def log(mode, message):
-    name = 'memory-worker.log' if mode == 'checkpoint' else 'memory-consolidate.log'
+    name = 'memory-consolidate.log' if mode == 'consolidate' else 'memory-worker.log'
     path = state_dir() / name
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open('a') as stream:
@@ -200,23 +200,166 @@ def validate_changes(work, before, mode, candidates=None, results=None):
     return changes
 
 
-def apply_changes(store, before, changes):
+def scope_directories():
+    resolved = {}
+    for token, value in sorted(read_json(state_dir() / 'memory-scopes.json', {}).items()):
+        if token == 'global':
+            continue
+        for directory in ([value] if isinstance(value, str) else value):
+            root = Path(directory).expanduser()
+            if not root.is_dir():
+                log('checkpoint', f'alcance {token}: diretório inexistente ({directory})')
+                continue
+            ignored = subprocess.run(['git', '-C', str(root), 'check-ignore', '-q', 'CLAUDE.local.md'],
+                                     capture_output=True)
+            if ignored.returncode:
+                log('checkpoint', f'alcance {token}: CLAUDE.local.md não está ignorado em {root}; '
+                                  'acrescente-o a .git/info/exclude para publicar ali')
+                continue
+            resolved.setdefault(token, []).append(root / 'CLAUDE.local.md')
+    return resolved
+
+
+def instruction_paths():
+    return [state_dir() / 'CLAUDE.md'] + [p for paths in scope_directories().values() for p in paths]
+
+
+def instruction_snapshot(paths):
+    snapshot = {}
+    for path in paths:
+        if path.is_symlink():
+            raise ValueError(f'{path} é link simbólico; não substituir')
+        snapshot[path] = path.read_bytes() if path.exists() else b''
+    return snapshot
+
+
+def instruction_sections(data):
+    directories = scope_directories()
+    sections = {state_dir() / 'CLAUDE.md': preference_section(data, only='global')}
+    for token, paths in directories.items():
+        section = preference_section(data, only=token)
+        for path in paths:
+            sections[path] = section
+    published = {'global'} | set(directories)
+    for name, content in sorted(data.items()):
+        for rule in json.loads(frontmatter_field(content, 'rules') or '[]'):
+            if isinstance(rule, dict) and rule.get('scope', '').split(' (')[0].strip() not in published:
+                log('checkpoint', f"preferência NÃO publicada — alcance sem repositório mapeado: {rule['scope']}")
+    return sections
+
+
+def preference_section(data, only=None):
+    rules, rejected = {}, []
+    for name, content in sorted(data.items()):
+        if not name.endswith('.md') or frontmatter_field(content, 'superseded_by'):
+            continue
+        raw = frontmatter_field(content, 'rules')
+        if raw is None:
+            continue
+        if frontmatter_field(content, 'type') != 'feedback':
+            rejected.append(f'{name}: regra fora de memória feedback')
+            continue
+        try:
+            entries = json.loads(raw)
+        except json.JSONDecodeError:
+            entries = None
+        if not isinstance(entries, list):
+            rejected.append(f'{name}: rules não é uma lista JSON de uma linha')
+            continue
+        body = ' '.join(content.decode().split('---', 2)[-1].split())
+        for rule in entries:
+            if (not isinstance(rule, dict) or set(rule) != {'key', 'scope', 'instruction', 'evidence'}
+                    or any(not isinstance(v, str) or not v.strip() for v in rule.values())
+                    or not re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*', rule['key'])
+                    or any(c in rule['instruction'] + rule['scope'] for c in '\r\n')
+                    or any(m in rule['instruction'] + rule['scope'] for m in ('<!--', '-->'))
+                    or len(rule['instruction']) > 400 or len(rule['scope']) > 120):
+                rejected.append(f'{name}: regra malformada ({str(rule)[:80]})')
+                continue
+            if ' '.join(rule['evidence'].split()).rstrip('.,;:!?') not in body:
+                rejected.append(f"{name}: evidência de '{rule['key']}' não está no corpo")
+                continue
+            key = (rule['scope'], rule['key'])
+            if key in rules:
+                rejected.append(f'{name}: regra duplicada para {key}')
+                continue
+            if only is None or rule['scope'].split(' (')[0].strip() == only:
+                rules[key] = rule['instruction']
+    for problem in rejected:
+        log('checkpoint', 'preferência NÃO publicada — ' + problem)
+    if not rules:
+        return ''
+    header = [
+        '## Preferências aprendidas',
+        '',
+        'Estas são preferências permanentes do usuário, mantidas pelo plugin de memória.'
+        + ('' if only in (None, 'global') else f' Valem neste repositório ({only}).'),
+        'Aplique cada regra apenas no alcance indicado. Exceção local exige alcance explícito',
+        '("só nesta PR", "apenas desta vez"). Mudança permanente exige intenção explícita',
+        '("mude minha preferência", "daqui para frente"). Se um pedido contrariar uma regra',
+        'sem definir isso, pergunte ANTES de executar: só nesta tarefa ou como novo padrão?',
+        'Não deduza exceção local só porque o pedido menciona uma tarefa concreta.',
+        'Não altere a preferência permanente sem a definição do usuário.',
+        'O histórico fica nas memórias; não edite esta seção manualmente.',
+        '',
+    ]
+    lines = [f'- [{scope}] {instruction}' for (scope, key), instruction in sorted(rules.items())]
+    while lines and len('\n'.join(header + lines).encode()) + 1 > 10000:
+        log('checkpoint', 'preferência NÃO publicada — teto de 10 KB: ' + lines.pop())
+    return '\n'.join(header + lines) + '\n' if lines else ''
+
+
+def update_claude(before, section):
+    start = b'<!-- memory:preferences:start -->'
+    end = b'<!-- memory:preferences:end -->'
+    if start in before or end in before:
+        if before.count(start) != 1 or before.count(end) != 1 or before.index(start) > before.index(end):
+            raise ValueError('marcadores de preferências inválidos em CLAUDE.md')
+        prefix, rest = before.split(start)
+        _, suffix = rest.split(end)
+    else:
+        if not section:
+            return before
+        prefix, suffix = before + (b'\n\n' if before else b''), b'\n'
+    return prefix + start + b'\n' + section.encode() + end + suffix
+
+
+def apply_changes(store, before, changes, instructions_before=None):
     # Detecta alterações da thread principal/iCloud feitas durante a chamada do modelo.
     if snapshot(store) != before:
         raise ValueError('store mudou durante a execução; nada aplicado, tentar novamente')
-    if not changes:
+    instructions_after = {}
+    if instructions_before is not None:
+        if instruction_snapshot(instructions_before) != instructions_before:
+            raise ValueError('instruções mudaram durante a execução; nada aplicado, tentar novamente')
+        sections = instruction_sections(before | changes)
+        for path in set(instructions_before) | set(sections):
+            current = instructions_before.get(path, b'')
+            published = update_claude(current, sections.get(path, ''))
+            if published != current:
+                instructions_after[path] = published
+    if not changes and not instructions_after:
         return
     backup = state_dir() / 'memory-backups' / (datetime.datetime.now().strftime('%Y%m%d-%H%M%S-') + uuid.uuid4().hex[:8])
     backup.mkdir(parents=True)
+    for path in instructions_after:
+        copy = backup / 'instructions' / str(path).strip('/').replace('/', '_')
+        copy.parent.mkdir(parents=True, exist_ok=True)
+        copy.write_bytes(instructions_before.get(path, b''))
     for name in changes:
         if name in before:
             copy = backup / name
             copy.parent.mkdir(parents=True, exist_ok=True)
             copy.write_bytes(before[name])
     save_json(backup / 'manifest.json', {'store': str(store), 'changed': list(changes),
-                                       'created': [n for n in changes if n not in before]})
+                                       'created': [n for n in changes if n not in before],
+                                       'instructions': [str(path) for path in instructions_after]})
     for name, content in changes.items():
         atomic_write(store / name, content.decode())
+    for path, content in instructions_after.items():
+        if instruction_snapshot([path]) != {path: instructions_before.get(path, b'')}:
+            raise ValueError(f'{path} mudou antes da publicação; memórias aplicadas, instruções pendentes')
+        atomic_write(path, content.decode())
 
 
 def record_usage(before, changed, names, session):
@@ -239,12 +382,14 @@ def record_usage(before, changed, names, session):
 
 def checkpoint(store, request):
     session, lines = request['session_id'], request['lines']
+    bootstrap = request.get('bootstrap_preferences', False)
     marker = state_dir() / 'memory-checkpoints' / (session + '.json')
     previous = read_json(marker, {'lines': 0})['lines']
     minimum = 20 if request.get('hook_event_name') == 'PreCompact' else 120
-    if lines - previous < minimum:
+    if not bootstrap and lines - previous < minimum:
         return
     before = snapshot(store)
+    instructions_before = instruction_snapshot(instruction_paths())
     with tempfile.TemporaryDirectory(prefix='claude-memory-') as tmp:
         work = Path(tmp).resolve() / 'store'
         work.mkdir()
@@ -252,13 +397,17 @@ def checkpoint(store, request):
         prompt = (ROOT / 'hooks/worker-prompt.md').read_text() + '\n' + (ROOT / 'skills/memory-curation/SKILL.md').read_text()
         # O transcript é dado, não uma sessão retomada com ferramentas e hooks herdados.
         request_text = json.dumps({'session_id': session, 'store': str(work),
-                                  'transcript': request['transcript']}, ensure_ascii=False)
+                                  'transcript': request['transcript'],
+                                  'preferences': preference_section(before),
+                                  'scopes': sorted(read_json(state_dir() / 'memory-scopes.json', {})),
+                                  'bootstrap_preferences': bootstrap}, ensure_ascii=False)
         report = model_run(work, 'checkpoint', ['**/*.md'], prompt, request_text)
         used = validate_report(report, 'checkpoint')
         changes = validate_changes(work, before, 'checkpoint')
         record_usage(before, changes, used, session)
-        apply_changes(store, before, changes)
-    save_json(marker, {'lines': lines})
+        apply_changes(store, before, changes, instructions_before)
+    if not bootstrap:
+        save_json(marker, {'lines': lines})
     log('checkpoint', f'checkpoint confirmado sessao={session[:8]} arquivos={len(changes)}')
 
 
@@ -362,7 +511,7 @@ def dispatch(mode):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('mode', choices=['checkpoint', 'consolidate', 'dispatch-checkpoint', 'dispatch-consolidate'])
+    parser.add_argument('mode', choices=['checkpoint', 'consolidate', 'dispatch-checkpoint', 'dispatch-consolidate', 'bootstrap'])
     parser.add_argument('--request', type=Path)
     parser.add_argument('--daily', action='store_true')
     args = parser.parse_args()
@@ -375,6 +524,9 @@ def main():
         with store_lock(store):
             if mode == 'checkpoint':
                 checkpoint(store, json.loads(args.request.read_text()))
+            elif mode == 'bootstrap':
+                checkpoint(store, {'session_id': 'bootstrap-' + datetime.date.today().isoformat(),
+                                   'lines': 0, 'transcript': [], 'bootstrap_preferences': True})
             else:
                 consolidate(store, args.daily)
         return 0
