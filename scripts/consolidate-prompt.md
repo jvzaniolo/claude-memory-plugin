@@ -35,9 +35,9 @@ que já pertencem a um dossiê. Para **cada** uma:
   detalhe continua no disco; o que muda é o que está em primeiro plano. Se lhe parecer que um
   arquivo deveria ser removido, escreva isso no relatório e siga em frente.
 - **Nunca toque no `MEMORY.md`.** O índice não é seu.
-- **Nunca toque em memória `feedback` ou `reference`,** mesmo que a veja pelo caminho. Regra de
-  comportamento e armadilha técnica não envelhecem: "nunca abra o navegador" vale igual no
-  primeiro e no milésimo dia.
+- **Nunca generalize arquivos-tópico `feedback` ou `reference`.** Regras e armadilhas técnicas
+  não envelhecem por desuso. Essa proibição não impede editar o dossiê explicitamente recebido
+  no lote, mesmo que o dossiê tenha tipo `reference`: ele é o destino autorizado do resumo.
 - **Nunca invente.** Se o arquivo não diz, não escreva. Não pesquise no repositório, não deduza
   do nome, não complete lacuna com o que seria plausível.
 - Trabalhe apenas dentro do diretório do store. Nada de git, nada de arquivo de projeto.
@@ -48,5 +48,10 @@ Ao escrever no dossiê, use `[[slug]]` só como link de verdade. Exemplo de link
 se escreve com crase e sem os colchetes duplos — um corretor automático não distingue os dois e
 já destruiu uma frase por isso.
 
-Termine imprimindo uma linha por memória: `consolidada|já-resumida|pulada <arquivo> — <o que
-você acrescentou ao dossiê, em meia linha>`.
+Retorne um objeto estruturado `results`, com uma entrada por arquivo recebido:
+`{"file": "caminho-relativo.md", "status": "consolidated"}`.
+Use `consolidated` quando incorporou a essência ao dossiê, `already_summarized` quando verificou
+que ela já estava presente, e `skipped` quando não concluiu a análise daquele arquivo.
+Arquivos omitidos ou `skipped` continuam pendentes. Nunca declare sucesso para outro arquivo.
+Você está em uma cópia temporária: só os dossiês dos itens confirmados poderão ser aplicados.
+Não exponha listas de controle ou blocos “Medido / Não medido” no conteúdo das memórias.

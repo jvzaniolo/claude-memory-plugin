@@ -39,9 +39,8 @@ Os quatro tipos, e a diferença importa mais do que parece:
 - **`reference`** — ponteiro para recurso externo, armadilha técnica reutilizável.
 
 `feedback` e `reference` são **regras que não envelhecem**: valem igual no primeiro e no
-milésimo dia, e nunca devem ser generalizadas ou rebaixadas por desuso. Elas costumam agir sem
-que ninguém abra o arquivo — o gancho no índice basta —, então uso baixo não é sinal de pouco
-valor. É o contrário.
+milésimo dia, e nunca devem ser generalizadas ou rebaixadas por desuso. O gancho no índice é apenas um ponteiro: abra a fonte antes de aplicar a regra.
+Uso baixo não justifica apagar ou generalizar essas memórias.
 
 ## Ordem de leitura
 
@@ -122,7 +121,7 @@ justamente o que não se recupera investigando.
 
 - **Apagar porque a tarefa acabou.** Concluir não apaga: o valor de uma memória de tarefa é o
   domínio que ela carrega — a fórmula, a regra de negócio, o número medido, a decisão e o porquê
-  — e isso sobrevive à entrega. Remova só o que se provou errado ou vencido.
+  — e isso sobrevive à entrega. Preserve conteúdo superado com aviso e sucessor explícito.
 - **Encurtar linha de assunto alheio no índice.** Sem o contexto que a produziu, reescrever
   destrói o detalhe que era o valor dela: um path, um número, um identificador.
 - **Escrever wikilink de exemplo com colchetes duplos.** Um corretor automático não distingue
@@ -131,7 +130,9 @@ justamente o que não se recupera investigando.
 
 ## Higiene
 
-Rode a verificação depois de qualquer edição em lote no índice ou nos dossiês:
+Em uma sessão de manutenção, rode a verificação depois de edição em lote no índice ou nos
+dossiês. No worker isolado, não execute comandos: o processo local faz essa validação após
+a resposta estruturada.
 
 ```bash
 "${CLAUDE_PLUGIN_ROOT}/scripts/check.sh"
