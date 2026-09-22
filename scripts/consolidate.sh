@@ -65,28 +65,17 @@ OUT=$(echo "$LOTE_JSON" | CLAUDE_MEMORY_WORKER=1 claude -p \
 RC=$?
 echo "$OUT" >> "$LOG"
 
-# rc=0 não basta: o relatório precisa existir e não ser rastro de exceção
-if [ "$RC" -eq 0 ] && echo "$OUT" | grep -qE '^(consolidada|já-resumida|pulada) ' \
-   && ! echo "$OUT" | grep -q 'Traceback'; then
-  echo "$LOTE_JSON" | python3 -c "
-import json,sys,os
-novo=json.load(sys.stdin)
-p=os.path.expanduser('~/.claude/memory-consolidated.json')
-try:
-    est=json.load(open(p))
-except Exception:
-    est={}
-import re
-store=novo['store']
-for c in novo['candidatos']:
-    t=open(os.path.join(store,c['arquivo'])).read()
-    m=re.search(r'^\s*modified:\s*(.+?)\s*\$', t, re.M)
-    est[c['arquivo']]={'modified': m.group(1).strip() if m else None,
-                       'consolidado_em': __import__('datetime').date.today().isoformat()}
-json.dump(est, open(p,'w'), ensure_ascii=False, indent=2)
-print(f'marcadas {len(novo[\"candidatos\"])} memórias como consolidadas')
-" >> "$LOG" 2>&1
-  log "concluído (rc=0)"
+# rc=0 não basta: o relatório precisa existir e não ser rastro de exceção.
+# E o relatório é a confirmação, não enfeite: marcar o lote inteiro porque alguma
+# linha casou esconde memória pulada como se estivesse feita.
+if [ "$RC" -eq 0 ] && ! echo "$OUT" | grep -q 'Traceback'; then
+  RESUMO=$(echo "$LOTE_JSON" | RELATORIO="$OUT" python3 "$(dirname "$0")/confirm.py" "$STATE" 2>>"$LOG")
+  CONF_RC=$?
+  if [ "$CONF_RC" -eq 0 ]; then
+    log "concluído ($RESUMO)"
+  else
+    log "FALHOU (relatório não confirmou nenhuma memória) — nada marcado, tenta de novo amanhã"
+  fi
 else
-  log "FALHOU (rc=$RC, sem relatório válido) — nada marcado, tenta de novo amanhã"
+  log "FALHOU (rc=$RC, sem relatório ou com rastro de exceção) — nada marcado, tenta de novo amanhã"
 fi
