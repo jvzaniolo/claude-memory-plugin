@@ -48,5 +48,12 @@ Ao escrever no dossiê, use `[[slug]]` só como link de verdade. Exemplo de link
 se escreve com crase e sem os colchetes duplos — um corretor automático não distingue os dois e
 já destruiu uma frase por isso.
 
-Termine imprimindo uma linha por memória: `consolidada|já-resumida|pulada <arquivo> — <o que
-você acrescentou ao dossiê, em meia linha>`.
+Termine imprimindo uma linha por memória, começando pelo status seguido do arquivo:
+
+    consolidada <arquivo> — <o que você acrescentou ao dossiê, em meia linha>
+    já-resumida <arquivo> — <por que o dossiê já bastava>
+    pulada <arquivo> — <por que não deu>
+
+Esse relatório é a confirmação do que foi feito: só as memórias que aparecerem como
+`consolidada` ou `já-resumida` são marcadas. Omitir uma linha não é neutro — deixa aquela
+memória pendente para a próxima rodada. Relatar parte do lote é melhor que inventar o resto.
